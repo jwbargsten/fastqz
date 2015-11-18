@@ -588,6 +588,7 @@ int main(int argc, char** argv) {
     int base=0;  // packed bases in base 4
     unsigned char hbuf[N]={0};  // previous header
     unsigned char bbuf[N]={0};  // one sequence
+    unsigned int hasN[N]={0};  // 1 if at N 0 otherwise
     int matches[N+3]={0};
     int match_sum=0, base_sum=0;
     int line=0;
@@ -623,6 +624,9 @@ int main(int argc, char** argv) {
           j=(c=='A')+(c=='C')*2+(c=='G')*3+(c=='T')*4;
           if (!j) error("expected base A,C,G,T,N");
           bbuf[len++]=j-1;
+          hasN[i]=0;
+        } else {
+          hasN[i]=1;
         }
       }
       if (i!=n) error("wrong number of base calls");
@@ -718,6 +722,11 @@ int main(int argc, char** argv) {
       for (i=0; (c=getc(in))!=EOF; ++i, k=j, j=c) {
         if (c!=10 && (c<33 || c>104))
           error("expected quality score in 33..104");
+
+        // for base N, set quality to 0
+        if(c!=10 && hasN[i])
+          c=33;
+
         if (quality>1 && c>35) c-=(c-35)%quality;
         if (c==35 && (len==0 || j==35)) ++len;
         else if (len==0 && c>=64 && c<=71) ++len;
@@ -863,6 +872,7 @@ int main(int argc, char** argv) {
         c=getc(in[2]);
         if (c==EOF) error("unexpected end of .fxq");
         if (i>n) error("missing .fxq terminator");
+
         if (c==0) { // end of line
           for (; i<n; ++i) qbuf[i]=35;
           break;
@@ -941,7 +951,7 @@ int main(int argc, char** argv) {
       putc(10, out);
 
       // write quality scores
-      for (i=0; i<n; ++i) putc(qbuf[i], out);
+      for (i=0; i<n; ++i) putc((qbuf[i] == 33 ? 35 : qbuf[i]), out);
       putc(10, out);
     }
     fclose(out);
